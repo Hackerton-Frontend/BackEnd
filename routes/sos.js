@@ -11,8 +11,8 @@ const LOG_FILE = path.join(__dirname, '../data/sosLogs.json');
  * @swagger
  * /api/sos:
  *   post:
- *     summary: SOS 요청 처리
- *     description: 사용자의 위치, 개인정보, 위급 상황 설명을 기반으로 ETA를 계산하고 로그로 저장합니다.
+ *     summary: SOS 요청 등록
+ *     description: 사용자의 위치 및 개인정보로 ETA를 계산하고 로그를 저장합니다.
  *     tags: [SOS]
  *     requestBody:
  *       required: true
@@ -30,10 +30,8 @@ const LOG_FILE = path.join(__dirname, '../data/sosLogs.json');
  *             properties:
  *               lat:
  *                 type: number
- *                 example: 36.361349
  *               lng:
  *                 type: number
- *                 example: 127.344596
  *               name:
  *                 type: string
  *               rrn:
@@ -44,9 +42,9 @@ const LOG_FILE = path.join(__dirname, '../data/sosLogs.json');
  *                 type: string
  *     responses:
  *       200:
- *         description: ETA 정보 반환
+ *         description: ETA 반환 및 로그 저장
  *       400:
- *         description: 필수 정보 누락
+ *         description: 필수 값 누락
  *       500:
  *         description: 서버 오류
  */
@@ -67,7 +65,7 @@ router.post('/', async (req, res) => {
       situation,
       location: { lat, lng },
       eta,
-      status: '처리중',
+      status: '처리중', // ✅ 기본 상태
     };
 
     const logs = fs.existsSync(LOG_FILE)
@@ -79,6 +77,7 @@ router.post('/', async (req, res) => {
 
     res.json(eta);
   } catch (err) {
+    console.error('등록 오류:', err);
     res.status(500).json({ error: '서버 내부 오류' });
   }
 });
@@ -87,11 +86,11 @@ router.post('/', async (req, res) => {
  * @swagger
  * /api/sos:
  *   get:
- *     summary: SOS 요청 리스트 조회
+ *     summary: SOS 로그 전체 조회
  *     tags: [SOS]
  *     responses:
  *       200:
- *         description: SOS 요청 배열 반환
+ *         description: 전체 로그 목록 반환
  */
 router.get('/', (req, res) => {
   try {
@@ -99,8 +98,7 @@ router.get('/', (req, res) => {
       return res.json([]);
     }
 
-    const raw = fs.readFileSync(LOG_FILE);
-    const logs = JSON.parse(raw);
+    const logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf-8'));
     res.json(logs);
   } catch (err) {
     res.status(500).json({ error: '서버 내부 오류' });
@@ -111,7 +109,7 @@ router.get('/', (req, res) => {
  * @swagger
  * /api/sos/{timestamp}:
  *   delete:
- *     summary: 특정 SOS 요청 삭제
+ *     summary: 특정 SOS 로그 삭제
  *     tags: [SOS]
  *     parameters:
  *       - in: path
@@ -119,12 +117,12 @@ router.get('/', (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: 로그 고유 timestamp 값
+ *         description: 삭제할 로그의 timestamp
  *     responses:
  *       200:
  *         description: 삭제 성공
  *       404:
- *         description: 로그 없음
+ *         description: 로그를 찾을 수 없음
  */
 router.delete('/:timestamp', (req, res) => {
   const { timestamp } = req.params;
@@ -134,8 +132,7 @@ router.delete('/:timestamp', (req, res) => {
       return res.status(404).json({ error: '로그 파일이 없습니다.' });
     }
 
-    const raw = fs.readFileSync(LOG_FILE, 'utf-8');
-    let logs = JSON.parse(raw);
+    let logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf-8'));
 
     const originalLength = logs.length;
     logs = logs.filter(entry => entry.timestamp !== timestamp);
@@ -147,7 +144,6 @@ router.delete('/:timestamp', (req, res) => {
     fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
     res.json({ message: '삭제 완료' });
   } catch (err) {
-    console.error('삭제 중 오류 발생:', err);
     res.status(500).json({ error: '서버 내부 오류' });
   }
 });
@@ -156,7 +152,7 @@ router.delete('/:timestamp', (req, res) => {
  * @swagger
  * /api/sos/{timestamp}/status:
  *   patch:
- *     summary: SOS 요청 상태 업데이트
+ *     summary: SOS 처리 상태 변경 (처리중 → 처리완료)
  *     tags: [SOS]
  *     parameters:
  *       - in: path
@@ -169,9 +165,7 @@ router.delete('/:timestamp', (req, res) => {
  *       200:
  *         description: 상태 변경 완료
  *       404:
- *         description: 해당 로그를 찾을 수 없음
- *       500:
- *         description: 서버 오류
+ *         description: 로그를 찾을 수 없음
  */
 router.patch('/:timestamp/status', (req, res) => {
   const { timestamp } = req.params;
@@ -181,19 +175,18 @@ router.patch('/:timestamp/status', (req, res) => {
       return res.status(404).json({ error: '로그 파일이 없습니다.' });
     }
 
-    const raw = fs.readFileSync(LOG_FILE, 'utf-8');
-    const logs = JSON.parse(raw);
-
+    const logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf-8'));
     const target = logs.find(entry => entry.timestamp === timestamp);
+
     if (!target) {
       return res.status(404).json({ error: '해당 로그를 찾을 수 없습니다.' });
     }
 
-    target.status = '처리완료';
+    target.status = '처리완료'; // ✅ 상태 변경
     fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+
     res.json({ message: '상태 변경 완료' });
   } catch (err) {
-    console.error('상태 변경 중 오류 발생:', err);
     res.status(500).json({ error: '서버 내부 오류' });
   }
 });
