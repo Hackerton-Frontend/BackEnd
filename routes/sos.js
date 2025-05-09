@@ -140,4 +140,54 @@ router.get('/', (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/sos/{timestamp}:
+ *   delete:
+ *     summary: 특정 SOS 요청 삭제
+ *     description: timestamp 기준으로 SOS 로그 중 하나를 삭제합니다.
+ *     tags:
+ *       - SOS
+ *     parameters:
+ *       - in: path
+ *         name: timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 삭제할 로그의 timestamp
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *       404:
+ *         description: 해당 로그를 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
+router.delete('/:timestamp', (req, res) => {
+  const { timestamp } = req.params;
+
+  try {
+    if (!fs.existsSync(LOG_FILE)) {
+      return res.status(404).json({ error: '로그 파일이 없습니다.' });
+    }
+
+    const raw = fs.readFileSync(LOG_FILE, 'utf-8');
+    let logs = JSON.parse(raw);
+
+    const originalLength = logs.length;
+    logs = logs.filter(entry => entry.timestamp !== timestamp);
+
+    if (logs.length === originalLength) {
+      return res.status(404).json({ error: '해당 로그를 찾을 수 없습니다.' });
+    }
+
+    fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+    res.json({ message: '삭제 완료' });
+  } catch (err) {
+    console.error('삭제 중 오류 발생:', err);
+    res.status(500).json({ error: '서버 내부 오류' });
+  }
+});
+
+
 module.exports = router;
