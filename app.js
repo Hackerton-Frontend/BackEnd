@@ -23,7 +23,7 @@ const swaggerSpec = swaggerJsdoc({
     },
     servers: [
       {
-        url: 'http://localhost:3000',
+        url: 'https://backend-0mut.onrender.com',
       },
     ],
   },
