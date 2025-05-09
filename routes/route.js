@@ -128,8 +128,14 @@ router.get('/', async (req, res) => {
     const result = await getFastAndSafeRoutes(start, end);
 
     // CCTV 중복 제거 적용
-    result.fastRoute.cctvInfo.cctvLoc = removeDuplicateCCTVs(result.fastRoute.cctvInfo.cctvLoc);
-    result.safeRoute.cctvInfo.cctvLoc = removeDuplicateCCTVs(result.safeRoute.cctvInfo.cctvLoc);
+    const uniqueFastCCTVs = removeDuplicateCCTVs(result.fastRoute.cctvInfo.cctvLoc);
+    const uniqueSafeCCTVs = removeDuplicateCCTVs(result.safeRoute.cctvInfo.cctvLoc);
+
+    result.fastRoute.cctvInfo.cctvLoc = uniqueFastCCTVs;
+    result.fastRoute.cctvInfo.count = uniqueFastCCTVs.length;
+
+    result.safeRoute.cctvInfo.cctvLoc = uniqueSafeCCTVs;
+    result.safeRoute.cctvInfo.count = uniqueSafeCCTVs.length;
 
     res.json(result);
   } catch (error) {
