@@ -7,7 +7,49 @@ const { findNearestPatrolWithEta } = require('../services/sosService');
 // 로그 파일 경로
 const LOG_FILE = path.join(__dirname, '../data/sosLogs.json');
 
-// POST 요청 - SOS 등록
+/**
+ * @swagger
+ * /api/sos:
+ *   post:
+ *     summary: SOS 요청 처리
+ *     description: 사용자의 위치, 개인정보, 위급 상황 설명을 기반으로 ETA를 계산하고 로그로 저장합니다.
+ *     tags: [SOS]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - lat
+ *               - lng
+ *               - name
+ *               - rrn
+ *               - phone
+ *               - situation
+ *             properties:
+ *               lat:
+ *                 type: number
+ *                 example: 36.361349
+ *               lng:
+ *                 type: number
+ *                 example: 127.344596
+ *               name:
+ *                 type: string
+ *               rrn:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               situation:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: ETA 정보 반환
+ *       400:
+ *         description: 필수 정보 누락
+ *       500:
+ *         description: 서버 오류
+ */
 router.post('/', async (req, res) => {
   const { lat, lng, name, rrn, phone, situation } = req.body;
 
@@ -25,7 +67,7 @@ router.post('/', async (req, res) => {
       situation,
       location: { lat, lng },
       eta,
-      status: '처리중', // 🔹 추가된 필드
+      status: '처리중',
     };
 
     const logs = fs.existsSync(LOG_FILE)
@@ -41,7 +83,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET 요청 - 모든 SOS 로그 조회
+/**
+ * @swagger
+ * /api/sos:
+ *   get:
+ *     summary: SOS 요청 리스트 조회
+ *     tags: [SOS]
+ *     responses:
+ *       200:
+ *         description: SOS 요청 배열 반환
+ */
 router.get('/', (req, res) => {
   try {
     if (!fs.existsSync(LOG_FILE)) {
@@ -56,7 +107,25 @@ router.get('/', (req, res) => {
   }
 });
 
-// DELETE 요청 - 특정 로그 삭제
+/**
+ * @swagger
+ * /api/sos/{timestamp}:
+ *   delete:
+ *     summary: 특정 SOS 요청 삭제
+ *     tags: [SOS]
+ *     parameters:
+ *       - in: path
+ *         name: timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 로그 고유 timestamp 값
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *       404:
+ *         description: 로그 없음
+ */
 router.delete('/:timestamp', (req, res) => {
   const { timestamp } = req.params;
 
@@ -83,7 +152,27 @@ router.delete('/:timestamp', (req, res) => {
   }
 });
 
-// PATCH 요청 - 상태 변경 (처리중 → 처리완료)
+/**
+ * @swagger
+ * /api/sos/{timestamp}/status:
+ *   patch:
+ *     summary: SOS 요청 상태 업데이트
+ *     tags: [SOS]
+ *     parameters:
+ *       - in: path
+ *         name: timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 상태를 변경할 로그의 timestamp
+ *     responses:
+ *       200:
+ *         description: 상태 변경 완료
+ *       404:
+ *         description: 해당 로그를 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
 router.patch('/:timestamp/status', (req, res) => {
   const { timestamp } = req.params;
 
