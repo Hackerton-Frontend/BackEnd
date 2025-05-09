@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getFastAndSafeRoutes } = require('../services/routeService');
+
 /**
  * @swagger
  * /api/route:
@@ -102,6 +103,17 @@ const { getFastAndSafeRoutes } = require('../services/routeService');
  *         description: 서버 오류가 발생했습니다.
  */
 
+// 중복 CCTV 좌표 제거 함수
+function removeDuplicateCCTVs(cctvLoc) {
+  const seen = new Set();
+  return cctvLoc.filter(({ lat, lng }) => {
+    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 router.get('/', async (req, res) => {
   try {
     const { startLat, startLng, endLat, endLng } = req.query;
@@ -114,8 +126,12 @@ router.get('/', async (req, res) => {
     const end = [parseFloat(endLng), parseFloat(endLat)];
 
     const result = await getFastAndSafeRoutes(start, end);
-    res.json(result);
 
+    // CCTV 중복 제거 적용
+    result.fastRoute.cctvInfo.cctvLoc = removeDuplicateCCTVs(result.fastRoute.cctvInfo.cctvLoc);
+    result.safeRoute.cctvInfo.cctvLoc = removeDuplicateCCTVs(result.safeRoute.cctvInfo.cctvLoc);
+
+    res.json(result);
   } catch (error) {
     console.error('경로 계산 중 오류 발생:', error);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
