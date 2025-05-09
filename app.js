@@ -35,6 +35,13 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const cctvRouter = require('./routes/cctv');
 app.use('/api/cctv', cctvRouter);
 
+const routeRouter = require('./routes/route');
+app.use('/api/route', routeRouter);
+
+// SOS 라우터 등록
+const sosRouter = require('./routes/sos');
+app.use('/api/sos', sosRouter);
+
 const PORT = 3000;
 app.listen(PORT, () => {
 });
